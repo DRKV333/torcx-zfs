@@ -2,19 +2,21 @@
 
 ## Building
 
-The build process currently requires guestfish and Docker. The base image can be generated as follows ($VERSION is the CoreOS release, for example 1576.5.0):
-```sh
-wget -qO - http://stable.release.core-os.net/amd64-usr/$VERSION/coreos_developer_container.bin.bz2 | bunzip2 > coreos_developer_container.bin
-guestfish -i -a coreos_developer_container.bin tgz-out / - | docker import - your-registry.com/coreos-devel:$VERSION
-docker push your-registry.com/coreos-devel:$VERSION
+The entire build process happens inside a docker container, so that's the only dependency you'll need. Build the image, and then run it. This will download and extract the Flatcar development image, build zfs and package up into a torcx module.
+
+```
+docker build -t torcx-zfs .
+
+docker run --rm -it -e "FLATCAR_RELEASE_BOARD=amd64-usr" -e "FLATCAR_RELEASE_VERSION=current" -e "ZOL_VERSION=2.1.0" -v /some/place/to/put/the/output:/out --privileged torcx-zfs
 ```
 
-Instantiate a container from that image and copy the repository into it (or let a CI do that for you).
-Then execute `env ZOL_VERSION=0.8.0 ./build.sh`. That will generate a torcx module for that specific CoreOS version
-and ZFSOnLinux 0.8.0.
+The image uses chroot and bind mounts to setup the development environment, and thus needs a few more capabilities than the default. Running with `--privileged` is the easiest option, but if you don't want to do that, you can use `--cap-add` as well. `SYS_CHROOT` and `SYS_ADMIN` are necessary, `SYS_NET_ADMIN` is needed to get rid of some warnings from Portage.
 
-## Old ZoL versions
-Master is only compatible with the latest major release of ZoL (currently 0.8). For older versions please use the corresponding branch.
+The following environment variables can be used to specify which version of Flatcar and zfs should be used:
+- `GROUP` (defaults to "stable")
+- `FLATCAR_RELEASE_BOARD`
+- `FLATCAR_RELEASE_VERSION`
+- `ZOL_VERSION`
 
 ## Installation
 
